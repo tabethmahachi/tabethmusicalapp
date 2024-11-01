@@ -1,106 +1,107 @@
-import style from '../styles/UploadModal.module.css'
-import axios from 'axios'
+import style from "../styles/UploadModal.module.css";
+import axios from "axios";
+import { useState } from "react";
 
 const UploadModal = ({
-  description: title,
-  musicUrl,
-  newMusic,
-  setTitle,
-  setMusicUrl,
-  setShowUploadMusic,
+    title,
+    newMusic,
+    setTitle,
+    setShowUploadMusic,
 }) => {
-  const toBase64 = file =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
-      reader.onload = () => resolve(reader.result)
-      reader.onerror = error => reject(error)
-    })
+    const [artistName, setArtistName] = useState('');
+    const [file, setFile] = useState(null);
+    const [loading, setLoading] = useState(false);
+    // Convert file to base64 (if needed for other uses) or keep it binary for direct upload
+    const handleFileChange = (e) => {
+        const selectedFile = e.target.files[0];
+        if (selectedFile && selectedFile.type === 'audio/mpeg') {
+            setFile(selectedFile);
+        } else {
+            alert("Please select an MP3 file.");
+        }
+    };
 
-  const uploadClicked = async () => {
-    var files = document.querySelector('#music-file')
-
-    if (files.files.length == 0) return
-
-    const base64_file = await toBase64(files.files[0])
-
-    axios
-      .post(
-        '/api/upload_music',
-        { file: base64_file, filename: files.files[0].name },
-        {},
-      )
-      .then(res => {
-        console.log(res.data)
-        if (
-          res.data.result &&
-          res.data.result.created &&
-          res.data.result.created[0].dataTxId
-        )
-          setMusicUrl(
-            'https://arweave.net/' + res.data.result.created[0].dataTxId,
-          )
-      })
-      .catch(err => {
-        console.log(err)
-      })
-  }
-
-  const createNewClicked = () => {
-    newMusic()
-  }
-
-  return (
-    <div className={style.wrapper}>
-      <div className={style.title}>Upload New Music</div>
-      <input type='file' id='music-file' name='file' />
-      <div className={style.modalButtons}>
-        <button
-          onClick={uploadClicked}
-          className={`${style.button} ${style.createButton}`}
-        >
-          Upload
-        </button>
-      </div>
-
-      <div className={style.inputField}>
-        <div className={style.inputTitle}>Title</div>
-        <div className={style.inputContainer}>
-          <input
-            className={style.input}
-            type='text'
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-          />
+    const createNewClicked = async () => {
+        if (!file) {
+            alert("Please upload an MP3 file.");
+            return;
+        }
+        setLoading(true);
+        const formData = new FormData();
+        formData.append("artistFullName", artistName);
+        formData.append("songTitle", title);
+        formData.append("music", file);
+        try {
+            const response = await axios.post(
+                "http://localhost:4071/block_chain_api/createsong",
+                formData,
+                {
+                    headers: {
+                        "Content-Type": "multipart/form-data",
+                    },
+                }
+            );
+            console.log("Upload successful:", response.data);
+            alert("Upload successful.");
+            setLoading(false);
+            setShowUploadMusic(false);
+        } catch (error) {
+            alert("Please upload an MP3 file.");
+            console.error("Error uploading song:", error);
+            setLoading(false);
+        }
+    };
+    return (
+        <div className={style.wrapper}>
+            <div className={style.inputField}>
+                <div className={style.inputTitle}>Title</div>
+                <div className={style.inputContainer}>
+                    <input
+                        className={style.input}
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                    />
+                </div>
+            </div>
+            <div className={style.inputField}>
+                <div className={style.inputTitle}>Artist Name</div>
+                <div className={style.inputContainer}>
+                    <input
+                        className={style.input}
+                        type="text"
+                        value={artistName}
+                        onChange={(e) => setArtistName(e.target.value)}
+                    />
+                </div>
+            </div>
+            <div className={style.inputField}>
+                <div className={style.inputTitle}>Upload MP3</div>
+                <div className={style.inputContainer}>
+                    <input
+                        type="file"
+                        accept="audio/mpeg"
+                        onChange={handleFileChange}
+                    />
+                </div>
+            </div>
+            <div className={style.modalButtons}>
+                <button
+                    onClick={() => setShowUploadMusic(false)}
+                    className={`${style.button} ${style.cancelButton}`}
+                >
+                    Cancel
+                </button>
+                <button
+                    onClick={createNewClicked}
+                    className={`${style.button} ${style.createButton}`}
+                    disabled={loading}
+                >
+                    {loading ? "Uploading..." : "Create New"}
+                </button>
+            </div>
         </div>
-      </div>
-      <div className={style.inputField}>
-        <div className={style.inputTitle}>Music Url</div>
-        <div className={style.inputContainer}>
-          <input
-            className={style.input}
-            type='text'
-            value={musicUrl}
-            onChange={e => setMusicUrl(e.target.value)}
-          />
-        </div>
-      </div>
-      <div className={style.modalButtons}>
-        <button
-          onClick={() => setShowUploadMusic(false)}
-          className={`${style.button} ${style.cancelButton}`}
-        >
-          Cancel
-        </button>
-        <button
-          onClick={createNewClicked}
-          className={`${style.button} ${style.createButton}`}
-        >
-          Create New
-        </button>
-      </div>
-    </div>
-  )
-}
+    );
+};
 
-export default UploadModal
+export default UploadModal;
